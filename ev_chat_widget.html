@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EV Chat Widget Demo</title>
+  <style>
+    :root {
+      --ev-surface: #ffffff;
+      --ev-surface-2: #f5f7f9;
+      --ev-accent: #059669;
+      --ev-accent-2: #0ea5e9;
+      --ev-text: #0f172a;
+      --ev-muted: #64748b;
+      --ev-border: #e2e8f0;
+      --ev-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      --ev-radius: 14px;
+      --ev-font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--ev-font);
+      background: #eef2f7;
+      color: var(--ev-text);
+    }
+
+    /* Launcher button */
+    #ev-chat-launcher {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      border: none;
+      background: var(--ev-accent);
+      color: white;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      box-shadow: var(--ev-shadow);
+      cursor: pointer;
+      font-size: 22px;
+      display: grid;
+      place-items: center;
+      transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+      z-index: 9999;
+    }
+
+    #ev-chat-launcher:focus-visible {
+      outline: 3px solid #c7f9cc;
+      outline-offset: 3px;
+    }
+
+    #ev-chat-launcher:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+      background: #047857;
+    }
+
+    /* Panel */
+    #ev-chat-panel {
+      position: fixed;
+      bottom: 84px;
+      right: 16px;
+      width: 340px;
+      max-width: calc(100vw - 24px);
+      height: 480px;
+      background: var(--ev-surface);
+      border-radius: var(--ev-radius);
+      box-shadow: var(--ev-shadow);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 9999;
+    }
+
+    #ev-chat-panel.ev-open {
+      display: flex;
+    }
+
+    .ev-header {
+      padding: 12px 14px;
+      background: linear-gradient(120deg, var(--ev-accent), var(--ev-accent-2));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ev-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .ev-close {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .ev-body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .ev-quick {
+      padding: 10px 12px 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--ev-surface-2);
+      border-bottom: 1px solid var(--ev-border);
+    }
+
+    .ev-chip {
+      border: 1px solid var(--ev-border);
+      background: white;
+      color: var(--ev-text);
+      border-radius: 20px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+
+    .ev-chip:hover {
+      background: #ecfeff;
+      border-color: var(--ev-accent-2);
+      transform: translateY(-1px);
+    }
+
+    .ev-messages {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--ev-surface);
+    }
+
+    .ev-msg {
+      max-width: 85%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      white-space: pre-wrap;
+    }
+
+    .ev-bot {
+      background: #f1f5f9;
+      align-self: flex-start;
+    }
+
+    .ev-user {
+      background: #dcfce7;
+      align-self: flex-end;
+    }
+
+    .ev-input {
+      padding: 10px;
+      border-top: 1px solid var(--ev-border);
+      display: flex;
+      gap: 8px;
+      background: var(--ev-surface-2);
+    }
+
+    .ev-input input {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--ev-border);
+      font-size: 14px;
+    }
+
+    .ev-input input:focus-visible {
+      outline: 2px solid var(--ev-accent);
+      border-color: var(--ev-accent);
+    }
+
+    .ev-send {
+      border: none;
+      background: var(--ev-accent);
+      color: white;
+      border-radius: 10px;
+      padding: 0 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .ev-send:hover {
+      background: #047857;
+      transform: translateY(-1px);
+    }
+
+    .ev-send:focus-visible {
+      outline: 3px solid #c7f9cc;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+      #ev-chat-panel {
+        right: 10px;
+        width: calc(100vw - 20px);
+        height: 70vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="ev-chat-launcher" aria-controls="ev-chat-panel" aria-expanded="false" title="Open EV help">
+    💬
+  </button>
+
+  <div id="ev-chat-panel" role="dialog" aria-label="EV help chat" aria-modal="false">
+    <div class="ev-header">
+      <h3>EV Help</h3>
+      <button class="ev-close" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="ev-body">
+      <div class="ev-quick" aria-label="Quick suggestions"></div>
+      <div class="ev-messages" aria-live="polite"></div>
+      <div class="ev-input">
+        <input type="text" placeholder="Ask about EVs, subsidies, charging..." aria-label="Message input" />
+        <button class="ev-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      const knowledge = {
+        benefits: "EVs have zero tailpipe emissions, lower running costs, smooth drive experience, and fewer moving parts to maintain.",
+        subsidies: "India: FAME-II supports EV adoption; states often add road-tax waivers or purchase rebates. Check your state EV policy site.",
+        charging: "Home AC charging covers daily needs; public chargers are on apps like Google Maps or PlugShare. DC fast charging is best for trips.",
+        battery: "Modern Li-ion packs are warrantied ~8 years. Avoid frequent 0%/100% cycles; mix AC charging with occasional DC fast charge.",
+        environment: "EVs cut local pollution. Grid mix matters, but overall lifecycle emissions trend lower over vehicle lifetime.",
+        faq: {
+          "how do evs work": "Electric motors powered by battery packs; energy flows via an inverter.",
+          "how far on one charge": "Range depends on battery size and driving style; many current EVs deliver 200–500 km ARAI range.",
+          "fast charging impact": "Frequent DC fast charging raises battery temps; occasional use is fine, daily use may speed degradation.",
+          "home charging": "Yes—most users install a 15A socket or wallbox. Night charging is typically enough for daily driving.",
+          "public chargers": "Locate via Google Maps or PlugShare; many malls, highways, and offices host AC/DC chargers."
+        }
+      };
+
+      const quickReplies = [
+        { label: "Benefits", key: "benefits" },
+        { label: "Subsidies", key: "subsidies" },
+        { label: "Charging", key: "charging" },
+        { label: "Battery life", key: "battery" }
+      ];
+
+      const launcher = document.getElementById("ev-chat-launcher");
+      const panel = document.getElementById("ev-chat-panel");
+      const closeBtn = panel.querySelector(".ev-close");
+      const quickWrap = panel.querySelector(".ev-quick");
+      const messages = panel.querySelector(".ev-messages");
+      const input = panel.querySelector("input");
+      const sendBtn = panel.querySelector(".ev-send");
+
+      function togglePanel(forceOpen) {
+        const isOpen = panel.classList.contains("ev-open");
+        const next = forceOpen !== undefined ? forceOpen : !isOpen;
+        panel.classList.toggle("ev-open", next);
+        launcher.setAttribute("aria-expanded", String(next));
+        if (next) input.focus();
+      }
+
+      function addMessage(text, role = "bot") {
+        const bubble = document.createElement("div");
+        bubble.className = `ev-msg ${role === "user" ? "ev-user" : "ev-bot"}`;
+        bubble.textContent = text;
+        messages.appendChild(bubble);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      function findFaq(input) {
+        const lower = input.toLowerCase();
+        const entries = Object.entries(knowledge.faq);
+        const exact = entries.find(([k]) => lower.includes(k));
+        if (exact) return exact[1];
+        if (lower.includes("charge") && lower.includes("long")) return knowledge.faq["how far on one charge"];
+        if (lower.includes("home") && lower.includes("charg")) return knowledge.faq["home charging"];
+        return null;
+      }
+
+      function getResponse(userText) {
+        const lower = userText.toLowerCase();
+        if (lower.includes("benefit")) return knowledge.benefits;
+        if (lower.includes("subsid")) return knowledge.subsidies;
+        if (lower.includes("charg")) return knowledge.charging;
+        if (lower.includes("batter")) return knowledge.battery;
+        if (lower.includes("environment") || lower.includes("pollution")) return knowledge.environment;
+
+        const faqHit = findFaq(lower);
+        if (faqHit) return faqHit;
+
+        // Placeholder hook for future API/LLM integration:
+        // return fetch("/api/chat", { method: "POST", body: JSON.stringify({ text: userText }) });
+        return "I can help with EV benefits, subsidies, charging, battery care, and common FAQs. What would you like to know?";
+      }
+
+      function handleSend(textOverride) {
+        const text = (textOverride ?? input.value).trim();
+        if (!text) return;
+        addMessage(text, "user");
+        input.value = "";
+
+        const reply = getResponse(text);
+        addMessage(reply, "bot");
+      }
+
+      quickReplies.forEach(q => {
+        const chip = document.createElement("button");
+        chip.className = "ev-chip";
+        chip.type = "button";
+        chip.textContent = q.label;
+        chip.addEventListener("click", () => handleSend(q.label));
+        quickWrap.appendChild(chip);
+      });
+
+      launcher.addEventListener("click", () => togglePanel());
+      closeBtn.addEventListener("click", () => togglePanel(false));
+      sendBtn.addEventListener("click", () => handleSend());
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSend();
+        }
+      });
+
+      addMessage("Hi! I’m your EV helper. Ask about subsidies, charging, battery life, or pick a quick topic.", "bot");
+    })();
+  </script>
+</body>
+</html>
+
