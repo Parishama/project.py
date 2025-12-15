@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EV Chat Widget Demo</title>
+  <style>
+    :root {
+      --ev-surface: #ffffff;
+      --ev-surface-2: #f5f7f9;
+      --ev-accent: #059669;
+      --ev-accent-2: #0ea5e9;
+      --ev-text: #0f172a;
+      --ev-muted: #64748b;
+      --ev-border: #e2e8f0;
+      --ev-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+      --ev-radius: 14px;
+      --ev-font: "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--ev-font);
+      background: #eef2f7;
+      color: var(--ev-text);
+    }
+
+    /* Launcher button */
+    #ev-chat-launcher {
+      position: fixed;
+      bottom: 18px;
+      right: 18px;
+      border: none;
+      background: var(--ev-accent);
+      color: white;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      box-shadow: var(--ev-shadow);
+      cursor: pointer;
+      font-size: 22px;
+      display: grid;
+      place-items: center;
+      transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+      z-index: 9999;
+    }
+
+    #ev-chat-launcher:focus-visible {
+      outline: 3px solid #c7f9cc;
+      outline-offset: 3px;
+    }
+
+    #ev-chat-launcher:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.16);
+      background: #047857;
+    }
+
+    /* Panel */
+    #ev-chat-panel {
+      position: fixed;
+      bottom: 84px;
+      right: 16px;
+      width: 340px;
+      max-width: calc(100vw - 24px);
+      height: 480px;
+      background: var(--ev-surface);
+      border-radius: var(--ev-radius);
+      box-shadow: var(--ev-shadow);
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      z-index: 9999;
+    }
+
+    #ev-chat-panel.ev-open {
+      display: flex;
+    }
+
+    .ev-header {
+      padding: 12px 14px;
+      background: linear-gradient(120deg, var(--ev-accent), var(--ev-accent-2));
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .ev-header h3 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .ev-close {
+      background: transparent;
+      border: none;
+      color: white;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    .ev-body {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .ev-quick {
+      padding: 10px 12px 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: var(--ev-surface-2);
+      border-bottom: 1px solid var(--ev-border);
+    }
+
+    .ev-chip {
+      border: 1px solid var(--ev-border);
+      background: white;
+      color: var(--ev-text);
+      border-radius: 20px;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: background 120ms ease, border-color 120ms ease, transform 120ms ease;
+    }
+
+    .ev-chip:hover {
+      background: #ecfeff;
+      border-color: var(--ev-accent-2);
+      transform: translateY(-1px);
+    }
+
+    .ev-suggestions {
+      padding: 8px 12px;
+      background: #f8fafc;
+      border-top: 1px solid var(--ev-border);
+      display: none;
+      flex-direction: column;
+      gap: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .ev-suggestions.show {
+      display: flex;
+    }
+
+    .ev-suggestions-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--ev-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .ev-suggestion-item {
+      background: white;
+      border: 1px solid var(--ev-border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      color: var(--ev-text);
+      cursor: pointer;
+      text-align: left;
+      transition: all 120ms ease;
+    }
+
+    .ev-suggestion-item:hover {
+      background: #ecfeff;
+      border-color: var(--ev-accent-2);
+      transform: translateX(2px);
+    }
+
+    .ev-stations {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ev-station-item {
+      background: white;
+      border: 1px solid var(--ev-border);
+      border-radius: 8px;
+      padding: 10px;
+      font-size: 13px;
+    }
+
+    .ev-station-name {
+      font-weight: 600;
+      color: var(--ev-accent);
+      margin-bottom: 4px;
+    }
+
+    .ev-station-address {
+      color: var(--ev-muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    .ev-station-details {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--ev-text);
+    }
+
+    .ev-station-detail {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .ev-station-distance {
+      background: #dcfce7;
+      color: var(--ev-accent);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    .ev-loading {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border: 2px solid var(--ev-border);
+      border-top-color: var(--ev-accent);
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .ev-station-link {
+      color: var(--ev-accent-2);
+      text-decoration: none;
+      font-size: 11px;
+      margin-top: 4px;
+      display: inline-block;
+    }
+
+    .ev-station-link:hover {
+      text-decoration: underline;
+    }
+
+    .ev-messages {
+      flex: 1;
+      padding: 12px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      background: var(--ev-surface);
+    }
+
+    .ev-msg {
+      max-width: 85%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      white-space: pre-wrap;
+    }
+
+    .ev-bot {
+      background: #f1f5f9;
+      align-self: flex-start;
+    }
+
+    .ev-user {
+      background: #dcfce7;
+      align-self: flex-end;
+    }
+
+    .ev-input {
+      padding: 10px;
+      border-top: 1px solid var(--ev-border);
+      display: flex;
+      gap: 8px;
+      background: var(--ev-surface-2);
+    }
+
+    .ev-input input {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--ev-border);
+      font-size: 14px;
+    }
+
+    .ev-input input:focus-visible {
+      outline: 2px solid var(--ev-accent);
+      border-color: var(--ev-accent);
+    }
+
+    .ev-send {
+      border: none;
+      background: var(--ev-accent);
+      color: white;
+      border-radius: 10px;
+      padding: 0 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 120ms ease, transform 120ms ease;
+    }
+
+    .ev-send:hover {
+      background: #047857;
+      transform: translateY(-1px);
+    }
+
+    .ev-send:focus-visible {
+      outline: 3px solid #c7f9cc;
+      outline-offset: 2px;
+    }
+
+    @media (max-width: 480px) {
+      #ev-chat-panel {
+        right: 10px;
+        width: calc(100vw - 20px);
+        height: 70vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <button id="ev-chat-launcher" aria-controls="ev-chat-panel" aria-expanded="false" title="Open EV help">
+    💬
+  </button>
+
+  <div id="ev-chat-panel" role="dialog" aria-label="EV help chat" aria-modal="false">
+    <div class="ev-header">
+      <h3>Help me with my EV</h3>
+      <button class="ev-close" aria-label="Close chat">&times;</button>
+    </div>
+    <div class="ev-body">
+      <div class="ev-quick" aria-label="Quick suggestions"></div>
+      <div class="ev-messages" aria-live="polite"></div>
+      <div class="ev-suggestions" id="ev-suggestions" aria-label="Suggested questions">
+        <div class="ev-suggestions-title">You might be asking:</div>
+      </div>
+      <div class="ev-input">
+        <input type="text" placeholder="Type your question here..." aria-label="Message input" id="ev-input-field" />
+        <button class="ev-send">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      // NLP Keyword Mapping - Maps keywords to question categories
+      const keywordMapping = {
+        range: ["range", "distance", "miles", "kilometers", "km", "how far", "travel", "single charge", "drive", "mileage"],
+        charging: ["charge", "charging", "charger", "plug", "outlet", "station", "time to charge", "how long charge", "fast charge", "slow charge"],
+        battery: ["battery", "batteries", "cell", "power", "capacity", "life", "replace", "degradation", "warranty", "lifespan"],
+        cost: ["cost", "price", "expensive", "cheap", "affordable", "money", "save", "tax", "incentive", "subsidy", "rebate", "fame"],
+        environment: ["environment", "green", "emission", "carbon", "pollution", "eco", "climate", "sustainable", "clean"],
+        performance: ["speed", "fast", "acceleration", "power", "horsepower", "mph", "kmh", "performance", "torque", "top speed"],
+        maintenance: ["maintenance", "service", "repair", "oil", "breakdown", "fix", "servicing", "upkeep"],
+        winter: ["winter", "cold", "snow", "weather", "temperature", "freeze", "heating"],
+        home_charging: ["home", "house", "install", "garage", "level 2", "wall charger", "domestic"],
+        comparison: ["vs", "versus", "compare", "difference", "better", "pros", "cons", "worth", "should i buy"],
+        safety: ["safe", "safety", "crash", "accident", "fire", "explosion"],
+        insurance: ["insurance", "premium", "coverage", "claim"],
+        nearby: ["nearby", "near", "close", "location", "around", "near me", "stations", "find", "where", "nearby charging", "charging stations"]
+      };
+
+      // Common EV Questions based on Google search trends
+      const commonEVQuestions = {
+        range: [
+          "What is the range of an electric vehicle?",
+          "How far can an EV travel on a single charge?",
+          "What is the average EV range?",
+          "Which electric car has the longest range?",
+          "How many kilometers can an EV go per charge?"
+        ],
+        charging: [
+          "How long does it take to charge an electric vehicle?",
+          "How much does it cost to charge an EV?",
+          "Where can I charge my electric car?",
+          "What types of EV chargers are available?",
+          "Can I charge my EV at home?",
+          "How fast can an EV charge?",
+          "What is fast charging for electric vehicles?"
+        ],
+        battery: [
+          "How long do EV batteries last?",
+          "What is the battery life of an electric vehicle?",
+          "How much does it cost to replace an EV battery?",
+          "What happens to EV batteries after they die?",
+          "How do I maintain my EV battery?",
+          "Do EV batteries degrade over time?"
+        ],
+        cost: [
+          "How much does an electric vehicle cost?",
+          "Are electric cars cheaper than gas cars?",
+          "What are the maintenance costs for EVs?",
+          "Are there tax incentives for buying an EV?",
+          "How much money can I save with an electric car?",
+          "What is the FAME subsidy for electric vehicles?"
+        ],
+        environment: [
+          "Are electric vehicles better for the environment?",
+          "How much CO2 do electric cars save?",
+          "Are EVs really zero emissions?",
+          "What is the carbon footprint of an electric vehicle?",
+          "Do electric cars reduce air pollution?"
+        ],
+        performance: [
+          "How fast can electric vehicles go?",
+          "Do electric cars have good acceleration?",
+          "How powerful are electric vehicle motors?",
+          "Can EVs tow or haul heavy loads?",
+          "What is the top speed of electric cars?"
+        ],
+        maintenance: [
+          "What maintenance does an EV need?",
+          "Do electric cars need oil changes?",
+          "How often do EVs need servicing?",
+          "What breaks down in electric vehicles?",
+          "Are electric cars expensive to maintain?"
+        ],
+        winter: [
+          "How do electric vehicles perform in cold weather?",
+          "Does cold weather affect EV range?",
+          "How to charge EV in winter?",
+          "Do electric cars work in snow?",
+          "How much range do EVs lose in winter?"
+        ],
+        home_charging: [
+          "Can I install a charger at home?",
+          "How much does a home EV charger cost?",
+          "What is a Level 2 charger?",
+          "Do I need special wiring for EV charging?",
+          "How to set up home charging for electric car?"
+        ],
+        comparison: [
+          "EV vs gas car comparison",
+          "Should I buy an electric or hybrid car?",
+          "What are the pros and cons of electric vehicles?",
+          "Are electric cars worth it?",
+          "Electric car vs petrol car which is better?"
+        ],
+        safety: [
+          "Are electric vehicles safe?",
+          "Do electric cars catch fire?",
+          "What safety features do EVs have?",
+          "Are electric cars safer than gas cars?"
+        ],
+        insurance: [
+          "How much is insurance for electric vehicles?",
+          "Is EV insurance more expensive?",
+          "What does EV insurance cover?"
+        ],
+        nearby: [
+          "Where are nearby EV charging stations?",
+          "Find charging stations near me",
+          "What charging stations are close to my location?",
+          "Show me nearby EV chargers"
+        ]
+      };
+
+      const knowledge = {
+        benefits: "EVs have zero tailpipe emissions, lower running costs, smooth drive experience, and fewer moving parts to maintain.",
+        subsidies: "India: FAME-II supports EV adoption; states often add road-tax waivers or purchase rebates. Check your state EV policy site.",
+        charging: "Home AC charging covers daily needs; public chargers are on apps like Google Maps or PlugShare. DC fast charging is best for trips.",
+        battery: "Modern Li-ion packs are warrantied ~8 years. Avoid frequent 0%/100% cycles; mix AC charging with occasional DC fast charge.",
+        environment: "EVs cut local pollution. Grid mix matters, but overall lifecycle emissions trend lower over vehicle lifetime.",
+        faq: {
+          "how do evs work": "Electric motors powered by battery packs; energy flows via an inverter.",
+          "how far on one charge": "Range depends on battery size and driving style; many current EVs deliver 200–500 km ARAI range.",
+          "fast charging impact": "Frequent DC fast charging raises battery temps; occasional use is fine, daily use may speed degradation.",
+          "home charging": "Yes—most users install a 15A socket or wallbox. Night charging is typically enough for daily driving.",
+          "public chargers": "Locate via Google Maps or PlugShare; many malls, highways, and offices host AC/DC chargers.",
+          "what is the range": "Most modern EVs offer 200-500 km range on a single charge. Range varies by model, driving style, and conditions.",
+          "how long to charge": "AC home charging: 6-12 hours. DC fast charging: 30-60 minutes for 80% charge. Time depends on battery size and charger speed.",
+          "battery replacement cost": "EV battery replacement can cost ₹3-8 lakhs depending on capacity. Most batteries last 8-10 years with proper care.",
+          "ev vs petrol": "EVs have lower running costs, zero emissions, smoother drive, but higher upfront cost. Petrol cars have longer range and faster refueling.",
+          "cold weather range": "EVs can lose 20-30% range in extreme cold due to battery efficiency and cabin heating. Pre-conditioning helps minimize loss."
+        }
+      };
+
+      const quickReplies = [
+        { label: "Benefits", key: "benefits" },
+        { label: "Subsidies", key: "subsidies" },
+        { label: "Charging", key: "charging" },
+        { label: "Battery life", key: "battery" },
+        { label: "Nearby Stations", key: "nearby stations" }
+      ];
+
+      const launcher = document.getElementById("ev-chat-launcher");
+      const panel = document.getElementById("ev-chat-panel");
+      const closeBtn = panel.querySelector(".ev-close");
+      const quickWrap = panel.querySelector(".ev-quick");
+      const messages = panel.querySelector(".ev-messages");
+      const input = document.getElementById("ev-input-field");
+      const sendBtn = panel.querySelector(".ev-send");
+      const suggestionsContainer = document.getElementById("ev-suggestions");
+
+      function togglePanel(forceOpen) {
+        const isOpen = panel.classList.contains("ev-open");
+        const next = forceOpen !== undefined ? forceOpen : !isOpen;
+        panel.classList.toggle("ev-open", next);
+        launcher.setAttribute("aria-expanded", String(next));
+        if (next) input.focus();
+      }
+
+      function addMessage(text, role = "bot", htmlContent = null) {
+        const bubble = document.createElement("div");
+        bubble.className = `ev-msg ${role === "user" ? "ev-user" : "ev-bot"}`;
+        if (htmlContent) {
+          bubble.innerHTML = htmlContent;
+        } else {
+          bubble.textContent = text;
+        }
+        messages.appendChild(bubble);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      // Get user's current location
+      function getUserLocation() {
+        return new Promise((resolve, reject) => {
+          if (!navigator.geolocation) {
+            reject(new Error("Geolocation is not supported by your browser"));
+            return;
+          }
+
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              resolve({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+              });
+            },
+            (error) => {
+              reject(error);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0
+            }
+          );
+        });
+      }
+
+      // Calculate distance between two coordinates (Haversine formula)
+      function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Earth's radius in km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = 
+          Math.sin(dLat/2) * Math.sin(dLat/2) +
+          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+          Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c;
+      }
+
+      // Fetch nearby charging stations using Open Charge Map API
+      async function findNearbyChargingStations(latitude, longitude, radius = 10) {
+        try {
+          // Open Charge Map API (free, no key required)
+          const url = `https://api.openchargemap.io/v3/poi/?output=json&latitude=${latitude}&longitude=${longitude}&distance=${radius}&distanceunit=KM&maxresults=10`;
+          
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error("Failed to fetch charging stations");
+          }
+          
+          const data = await response.json();
+          
+          // Process and format the data
+          const stations = data.map(station => {
+            const distance = calculateDistance(
+              latitude,
+              longitude,
+              station.AddressInfo.Latitude,
+              station.AddressInfo.Longitude
+            );
+            
+            // Get connection types
+            const connections = station.Connections || [];
+            const connectionTypes = connections.map(conn => {
+              if (conn.ConnectionType) {
+                return conn.ConnectionType.Title || "Unknown";
+              }
+              return null;
+            }).filter(Boolean);
+
+            return {
+              name: station.AddressInfo.Title || "Unnamed Station",
+              address: station.AddressInfo.AddressLine1 || station.AddressInfo.AddressLine2 || "Address not available",
+              city: station.AddressInfo.Town || "",
+              state: station.AddressInfo.StateOrProvince || "",
+              distance: distance.toFixed(1),
+              latitude: station.AddressInfo.Latitude,
+              longitude: station.AddressInfo.Longitude,
+              connectionTypes: connectionTypes.length > 0 ? connectionTypes : ["Standard"],
+              operator: station.OperatorInfo ? station.OperatorInfo.Title : "Unknown",
+              usageCost: station.UsageCost || "Free",
+              id: station.ID
+            };
+          });
+
+          // Sort by distance
+          stations.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+          
+          return stations;
+        } catch (error) {
+          console.error("Error fetching charging stations:", error);
+          throw error;
+        }
+      }
+
+      // Display charging stations in chat
+      function displayChargingStations(stations, userLocation) {
+        if (stations.length === 0) {
+          return "No charging stations found nearby. Try expanding your search radius or check PlugShare app for more options.";
+        }
+
+        let html = `<strong>Found ${stations.length} charging station${stations.length > 1 ? 's' : ''} near you:</strong><div class="ev-stations">`;
+        
+        stations.slice(0, 5).forEach(station => {
+          const fullAddress = [station.address, station.city, station.state].filter(Boolean).join(", ");
+          const mapUrl = `https://www.google.com/maps?q=${station.latitude},${station.longitude}`;
+          
+          html += `
+            <div class="ev-station-item">
+              <div class="ev-station-name">${station.name}</div>
+              <div class="ev-station-address">${fullAddress}</div>
+              <div class="ev-station-details">
+                <span class="ev-station-distance">${station.distance} km away</span>
+                <span class="ev-station-detail">⚡ ${station.connectionTypes.join(", ")}</span>
+                <span class="ev-station-detail">🏢 ${station.operator}</span>
+                <span class="ev-station-detail">💰 ${station.usageCost}</span>
+              </div>
+              <a href="${mapUrl}" target="_blank" class="ev-station-link">📍 Open in Maps</a>
+            </div>
+          `;
+        });
+        
+        html += `</div>`;
+        
+        if (stations.length > 5) {
+          html += `<div style="margin-top: 8px; font-size: 12px; color: var(--ev-muted);">And ${stations.length - 5} more stations nearby. Check PlugShare or Google Maps for complete listings.</div>`;
+        }
+        
+        return html;
+      }
+
+      // Handle nearby charging station requests
+      async function handleNearbyStationsRequest() {
+        // Create loading message
+        addMessage("Finding nearby charging stations...", "bot");
+        const loadingBubble = messages.lastElementChild;
+        
+        try {
+          // Get user location
+          loadingBubble.innerHTML = "📍 Getting your location... <span class='ev-loading'></span>";
+          const location = await getUserLocation();
+          
+          // Update loading message
+          loadingBubble.innerHTML = "🔍 Searching for charging stations... <span class='ev-loading'></span>";
+          
+          // Fetch nearby stations
+          const stations = await findNearbyChargingStations(location.latitude, location.longitude);
+          
+          // Remove loading message and show results
+          messages.removeChild(loadingBubble);
+          const resultsHtml = displayChargingStations(stations, location);
+          addMessage("", "bot", resultsHtml);
+          
+        } catch (error) {
+          // Remove loading message
+          if (loadingBubble && loadingBubble.parentNode) {
+            messages.removeChild(loadingBubble);
+          }
+          
+          let errorMessage = "I couldn't find nearby charging stations. ";
+          
+          if (error.message && error.message.includes("not supported")) {
+            errorMessage += "Your browser doesn't support location services.";
+          } else if (error.code === 1 || (error.message && error.message.includes("permission"))) {
+            errorMessage += "Please allow location access to find nearby stations. You can also search manually on Google Maps or PlugShare app.";
+          } else if (error.code === 3 || (error.message && error.message.includes("timeout"))) {
+            errorMessage += "Location request timed out. Please try again or check your internet connection.";
+          } else {
+            errorMessage += "Please try again or use Google Maps/PlugShare to find charging stations manually.";
+          }
+          
+          addMessage(errorMessage, "bot");
+        }
+      }
+
+      // NLP: Extract keywords from user input
+      function extractKeywords(userInput) {
+        const lower = userInput.toLowerCase();
+        const detectedCategories = [];
+        
+        for (const [category, keywords] of Object.entries(keywordMapping)) {
+          for (const keyword of keywords) {
+            if (lower.includes(keyword)) {
+              detectedCategories.push(category);
+              break; // Found a match for this category, move to next
+            }
+          }
+        }
+        
+        return [...new Set(detectedCategories)]; // Remove duplicates
+      }
+
+      // NLP: Find matching questions based on keywords
+      function findMatchingQuestions(userInput, maxQuestions = 3) {
+        const categories = extractKeywords(userInput);
+        
+        if (categories.length === 0) {
+          // Return general popular questions if no keywords detected
+          return [
+            "What is the range of an electric vehicle?",
+            "How long does it take to charge an electric vehicle?",
+            "How much does an electric vehicle cost?"
+          ];
+        }
+
+        const questionScores = {};
+        
+        // Score questions based on category matches
+        categories.forEach(category => {
+          if (commonEVQuestions[category]) {
+            commonEVQuestions[category].forEach(question => {
+              if (!questionScores[question]) {
+                questionScores[question] = 0;
+              }
+              questionScores[question] += 1;
+            });
+          }
+        });
+
+        // Sort by score and return top questions
+        const sortedQuestions = Object.entries(questionScores)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, maxQuestions)
+          .map(([question]) => question);
+
+        // If we have fewer than maxQuestions, fill with other questions from matched categories
+        if (sortedQuestions.length < maxQuestions) {
+          const allQuestions = [];
+          categories.forEach(cat => {
+            if (commonEVQuestions[cat]) {
+              allQuestions.push(...commonEVQuestions[cat]);
+            }
+          });
+          const uniqueQuestions = [...new Set(allQuestions)];
+          uniqueQuestions.forEach(q => {
+            if (!sortedQuestions.includes(q) && sortedQuestions.length < maxQuestions) {
+              sortedQuestions.push(q);
+            }
+          });
+        }
+
+        return sortedQuestions.slice(0, maxQuestions);
+      }
+
+      // Show suggested questions based on user input
+      function showSuggestions(userInput) {
+        if (!userInput || userInput.trim().length < 2) {
+          suggestionsContainer.classList.remove("show");
+          return;
+        }
+
+        const matchingQuestions = findMatchingQuestions(userInput, 3);
+        
+        // Clear previous suggestions (except title)
+        const title = suggestionsContainer.querySelector(".ev-suggestions-title");
+        suggestionsContainer.innerHTML = "";
+        suggestionsContainer.appendChild(title);
+
+        // Add suggestion items
+        matchingQuestions.forEach(question => {
+          const item = document.createElement("button");
+          item.className = "ev-suggestion-item";
+          item.type = "button";
+          item.textContent = question;
+          item.addEventListener("click", () => {
+            handleSend(question);
+            suggestionsContainer.classList.remove("show");
+          });
+          suggestionsContainer.appendChild(item);
+        });
+
+        suggestionsContainer.classList.add("show");
+      }
+
+      // Hide suggestions
+      function hideSuggestions() {
+        suggestionsContainer.classList.remove("show");
+      }
+
+      function findFaq(input) {
+        const lower = input.toLowerCase();
+        const entries = Object.entries(knowledge.faq);
+        
+        // Try exact match first
+        const exact = entries.find(([k]) => lower.includes(k));
+        if (exact) return exact[1];
+        
+        // Enhanced keyword matching using NLP categories
+        const keywords = extractKeywords(lower);
+        
+        if (keywords.includes("range") || lower.includes("how far") || lower.includes("distance")) {
+          return knowledge.faq["what is the range"] || knowledge.faq["how far on one charge"];
+        }
+        if (keywords.includes("charging") && (lower.includes("long") || lower.includes("time"))) {
+          return knowledge.faq["how long to charge"];
+        }
+        if (keywords.includes("battery") && (lower.includes("cost") || lower.includes("replace"))) {
+          return knowledge.faq["battery replacement cost"];
+        }
+        if (keywords.includes("comparison") || lower.includes("vs") || lower.includes("versus")) {
+          return knowledge.faq["ev vs petrol"];
+        }
+        if (keywords.includes("winter") || (lower.includes("cold") && keywords.includes("range"))) {
+          return knowledge.faq["cold weather range"];
+        }
+        if (keywords.includes("home_charging") || (lower.includes("home") && lower.includes("charg"))) {
+          return knowledge.faq["home charging"];
+        }
+        
+        return null;
+      }
+
+      async function getResponse(userText) {
+        const lower = userText.toLowerCase();
+        const keywords = extractKeywords(userText);
+        
+        // Check for nearby charging stations request
+        if (keywords.includes("nearby") || 
+            lower.includes("nearby") || 
+            lower.includes("near me") || 
+            (lower.includes("charging") && (lower.includes("station") || lower.includes("near") || lower.includes("where") || lower.includes("find")))) {
+          // This is async, so we handle it separately
+          return { type: "nearby_stations", handler: handleNearbyStationsRequest };
+        }
+        
+        // Direct topic matching
+        if (keywords.includes("cost") || lower.includes("benefit")) return { type: "text", content: knowledge.benefits };
+        if (keywords.includes("cost") && (lower.includes("subsid") || lower.includes("fame"))) return { type: "text", content: knowledge.subsidies };
+        if (keywords.includes("charging") && !keywords.includes("nearby")) return { type: "text", content: knowledge.charging };
+        if (keywords.includes("battery")) return { type: "text", content: knowledge.battery };
+        if (keywords.includes("environment")) return { type: "text", content: knowledge.environment };
+
+        // FAQ matching with NLP
+        const faqHit = findFaq(lower);
+        if (faqHit) return { type: "text", content: faqHit };
+
+        // If we detected keywords but no direct answer, provide contextual response
+        if (keywords.length > 0) {
+          const categoryNames = {
+            range: "range and distance",
+            charging: "charging options and times",
+            battery: "battery life and maintenance",
+            cost: "costs and subsidies",
+            environment: "environmental benefits",
+            performance: "performance and speed",
+            maintenance: "maintenance requirements",
+            winter: "cold weather performance",
+            home_charging: "home charging setup",
+            comparison: "comparisons with other vehicles",
+            nearby: "nearby charging stations"
+          };
+          
+          const topics = keywords.map(k => categoryNames[k] || k).join(", ");
+          return { type: "text", content: `I can help you with ${topics}. Try asking a specific question, or check the suggestions above!` };
+        }
+
+        // Default response
+        return { type: "text", content: "I can help with EV benefits, subsidies, charging, battery care, nearby stations, and common FAQs. What would you like to know?" };
+      }
+
+      async function handleSend(textOverride) {
+        const text = (textOverride ?? input.value).trim();
+        if (!text) return;
+        addMessage(text, "user");
+        input.value = "";
+        hideSuggestions();
+
+        // Small delay for better UX
+        setTimeout(async () => {
+          const reply = await getResponse(text);
+          
+          if (reply.type === "nearby_stations") {
+            // Handle async nearby stations request
+            await reply.handler();
+          } else {
+            // Regular text response
+            addMessage(reply.content, "bot");
+          }
+        }, 300);
+      }
+
+      quickReplies.forEach(q => {
+        const chip = document.createElement("button");
+        chip.className = "ev-chip";
+        chip.type = "button";
+        chip.textContent = q.label;
+        chip.addEventListener("click", () => handleSend(q.label));
+        quickWrap.appendChild(chip);
+      });
+
+      launcher.addEventListener("click", () => togglePanel());
+      closeBtn.addEventListener("click", () => togglePanel(false));
+      sendBtn.addEventListener("click", () => handleSend());
+      
+      // Real-time suggestion as user types
+      input.addEventListener("input", (e) => {
+        const value = e.target.value.trim();
+        if (value.length >= 2) {
+          showSuggestions(value);
+        } else {
+          hideSuggestions();
+        }
+      });
+
+      // Handle Enter key
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          handleSend();
+        } else if (e.key === "Escape") {
+          hideSuggestions();
+        }
+      });
+
+      // Hide suggestions when clicking outside
+      document.addEventListener("click", (e) => {
+        if (!panel.contains(e.target) && !launcher.contains(e.target)) {
+          hideSuggestions();
+        }
+      });
+
+      addMessage("Hi! I'm your EV helper. Ask about subsidies, charging, battery life, nearby charging stations, or pick a quick topic. I'll suggest relevant questions as you type!", "bot");
+    })();
+  </script>
+</body>
+</html>
